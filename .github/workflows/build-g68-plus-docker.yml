@@ -710,12 +710,30 @@ jobs:
               --notes-file /tmp/notes.md \
               "$IMG" "$T/sha256sums"
           else
-            gh release upload "$TAG" "$IMG" "$T/sha256sums" --clobber --repo "$GITHUB_REPOSITORY"
-            # 在已有 Release 说明后追加 generic 段（不覆盖原说明）
-            CUR=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq .body 2>/dev/null || true)
+            # 追加资产：直接用 REST API（gh release upload 在部分情况下返回 404，用 REST 更稳）
+            API="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY"
+            REL_ID=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "$API/releases/tags/$TAG" | jq -r .id)
+            [ -n "$REL_ID" ] && [ "$REL_ID" != "null" ] || { echo "::error::找不到 Release $TAG"; exit 1; }
+            for ASSET in "$IMG" "$T/sha256sums"; do
+              ANAME="$(basename "$ASSET")"
+              OLD_ID=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "$API/releases/$REL_ID/assets" | jq -r --arg n "$ANAME" '.[]|select(.name==$n)|.id' | head -1)
+              if [ -n "$OLD_ID" ]; then
+                curl -s -o /dev/null -X DELETE -H "Authorization: Bearer $GH_TOKEN" "$API/releases/assets/$OLD_ID"
+                echo "已删除同名旧资产: $ANAME"
+              fi
+              curl -s -o /dev/null -w "上传 $ANAME HTTP %{http_code}\n" -X POST \
+                -H "Authorization: Bearer $GH_TOKEN" -H 'Content-Type: application/octet-stream' \
+                --data-binary "@$ASSET" \
+                "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$REL_ID/assets?name=$ANAME"
+            done
+            # 在已有 Release 说明后追加段落（不覆盖原说明）
+            CUR=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "$API/releases/tags/$TAG" | jq -r .body)
             printf '%s\n\n---\n\n### generic 变体（追加）\n\n- 资产：`%s`（sha256 `%s`）\n- 构建：run #%s，提交 `%s`，软件包 %s 个\n- 说明：**不含**任何固件内置脚本/自动配置；分区、挂载、docker 数据目录、LAN 等需手动配置（见 docs/first-boot-checklist.md）\n' \
-              "$CUR" "$(basename "$IMG")" "$(sha256sum "$IMG" | cut -d' ' -f1)" "$GITHUB_RUN_NUMBER" "${GITHUB_SHA:0:8}" "$PKGS" > /tmp/body.md
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" -F body=@/tmp/body.md >/dev/null
+              "$CUR" "$(basename "$IMG")" "$(sha256sum "$IMG" | cut -d' ' -f1)" "$GITHUB_RUN_NUMBER" "${GITHUB_SHA:0:8}" "$PKGS" > /tmp/body.json
+            jq -Rs '{body: .}' /tmp/body.json > /tmp/body_payload.json
+            curl -s -o /dev/null -w "更新 Release 说明 HTTP %{http_code}\n" -X PATCH \
+              -H "Authorization: Bearer $GH_TOKEN" -H 'Content-Type: application/json' \
+              --data-binary @/tmp/body_payload.json "$API/releases/$REL_ID"
           fi
           echo "---- Release 资产 ----"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
