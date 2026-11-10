@@ -189,3 +189,5 @@ docker info | grep -i 'docker root dir'
 | RJ45 网口灯 | 由 RTL8367S 硬件驱动，软件不可控 |
 | 内核模块 | 与自编内核绑定，**不能**用官方 kmods 源安装，需重编 |
 | GitHub cron | 偶有延迟/跳过，已用脚本核验兜底 |
+
+> 📋 full / generic 版本差异与全部内置项：[docs/builtin-list.md](docs/builtin-list.md)

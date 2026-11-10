@@ -1848,3 +1848,8 @@ cat /etc/config/fstab | grep -E 'target|uuid'
 | 断电风险 | 分区表写入与 `mkfs` 期间断电可能留残；本手册的做法是「建表→重启→格式化」，窗口很短 |
 | 备份 | 配好后 LuCI 生成一次配置备份；升级勾「保留配置」即可沿用 |
 | 升级 | 以后刷同一基线的新版本，勾保留配置 → 分区、fstab、docker 路径都保留 |
+
+## 附录：full / generic 内置项差异
+
+- 全部内置项清单：[builtin-list.md](builtin-list.md)
+- generic（`-generic.img.gz`）会剔除 `files/` 下全部脚本与配置；分区、docker 数据目录、容器、LAN、共享全部手动配置。
