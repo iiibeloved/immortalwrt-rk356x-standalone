@@ -64,6 +64,10 @@ on:
         description: "构建成功后自动发布到 Release (生成免登录直链)"
         type: boolean
         default: true
+      publish_tag:
+        description: "可选：发布到指定 Release tag（留空=按日期新建；用于把 generic 产物追加进已有 Release）"
+        required: false
+        default: ""
   push:
     branches: [ main ]
     paths:
@@ -624,13 +628,29 @@ jobs:
             echo "::warning::没有找到 *.img.gz, 跳过 Release 发布"
             exit 0
           fi
-          # tag: 默认按日期; 同一天已有同名 Release 时追加 -r<run_number>, 保证多次构建并存
-          TAG="g68-plus-$(TZ=Asia/Shanghai date +%Y.%m.%d)"
-          if [ "${VARIANT:-full}" = "generic" ]; then
-            TAG="${TAG}-generic"
+          # tag: 优先用 publish_tag（把 generic 追加进已有 Release）；否则按日期新建
+          CREATE=1
+          TAG="${{ inputs.publish_tag }}"
+          if [ -n "$TAG" ]; then
+            CREATE=0
+            echo "追加模式：发布到已有 Release $TAG"
+          else
+            TAG="g68-plus-$(TZ=Asia/Shanghai date +%Y.%m.%d)"
+            if [ "${VARIANT:-full}" = "generic" ]; then
+              TAG="${TAG}-generic"
+            fi
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              TAG="${TAG}-r${GITHUB_RUN_NUMBER}"
+            fi
           fi
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            TAG="${TAG}-r${GITHUB_RUN_NUMBER}"
+
+          # generic 追加到 full 的同一个 Release 时，资产名不能与 full 冲突 -> 加 -generic 后缀
+          if [ "${VARIANT:-full}" = "generic" ] && [ "$CREATE" = "0" ]; then
+            BASE_IMG="$(basename "$IMG" .img.gz)"
+            mv "$IMG" "$T/${BASE_IMG}-generic.img.gz"
+            IMG="$T/${BASE_IMG}-generic.img.gz"
+            grep -v -- "-generic.img.gz" "$T/sha256sums" > "$T/sha256sums.new" 2>/dev/null || true
+            ( cd "$T" && sha256sum "$(basename "$IMG")" >> sha256sums.new && mv sha256sums.new sha256sums )
           fi
           PKGS=$(grep -c ' - ' "$T"/*.manifest 2>/dev/null || echo 0)
           KVER=$(sed -n 's/^CONFIG_LINUX_\([0-9]\)_\([0-9]*\)=y/\1.\2/p' .config | head -1 || true)
@@ -684,10 +704,19 @@ jobs:
             echo ""
             echo "也可在 LuCI「系统 → 备份/升级」直接上传 .img.gz。"
           } > /tmp/notes.md
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --title "ImmortalWrt G68-PLUS · ${TAG}" \
-            --notes-file /tmp/notes.md \
-            "$IMG" "$T/sha256sums"
+          if [ "$CREATE" = "1" ]; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "ImmortalWrt G68-PLUS · ${TAG}" \
+              --notes-file /tmp/notes.md \
+              "$IMG" "$T/sha256sums"
+          else
+            gh release upload "$TAG" "$IMG" "$T/sha256sums" --clobber --repo "$GITHUB_REPOSITORY"
+            # 在已有 Release 说明后追加 generic 段（不覆盖原说明）
+            CUR=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq .body 2>/dev/null || true)
+            printf '%s\n\n---\n\n### generic 变体（追加）\n\n- 资产：`%s`（sha256 `%s`）\n- 构建：run #%s，提交 `%s`，软件包 %s 个\n- 说明：**不含**任何固件内置脚本/自动配置；分区、挂载、docker 数据目录、LAN 等需手动配置（见 docs/first-boot-checklist.md）\n' \
+              "$CUR" "$(basename "$IMG")" "$(sha256sum "$IMG" | cut -d' ' -f1)" "$GITHUB_RUN_NUMBER" "${GITHUB_SHA:0:8}" "$PKGS" > /tmp/body.md
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" -F body=@/tmp/body.md >/dev/null
+          fi
           echo "---- Release 资产 ----"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
 
