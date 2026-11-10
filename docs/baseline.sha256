@@ -28,3 +28,4 @@ f48add100eb91cd175351357022cf76dbb4a68318471e2695cb98eca333208cd  files/etc/uci-
 3aade120680e5a2343174fc078b2131b63b1771c684bafee1de624546630f048  files/usr/share/luci/menu.d/luci-app-ksgc.json
 f59b6f5d7877a7332bee4caca8da7eca83201aa3ee47083ec942daebe14a2344  files/usr/share/rpcd/acl.d/luci-app-ksgc.json
 87076d144659640aad9558e98efc7c51d754883e4ccf01ec32efd99dc9df8542  files/www/luci-static/resources/view/ksgc/ksgc.js
+567f715039be119755601283d3a039d0d133ff8ce4f9d584e5f29dce2e035db3  files/etc/g68/quickstart-index.js
