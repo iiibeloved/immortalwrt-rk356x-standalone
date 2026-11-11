@@ -1853,3 +1853,19 @@ cat /etc/config/fstab | grep -E 'target|uuid'
 
 - 全部内置项清单：[builtin-list.md](builtin-list.md)
 - generic（`-generic.img.gz`）会剔除 `files/` 下全部脚本与配置；分区、docker 数据目录、容器、LAN、共享全部手动配置。
+
+## 7.10 u-boot 配置归档（/etc/uboot.config）
+
+从 2026-11-11 起，构建时会在编译固件前先单独编译 u-boot，并把它的 `.config` 写进镜像：
+
+```sh
+# 设备上直接查询（不用反汇编）
+grep -E 'ROCKCHIP_BOOT_MODE_REG|CONFIG_ADC|CONFIG_SPL_ADC' /etc/uboot.config
+```
+
+- 源码位置：u-boot 构建目录 `build_dir/target-*/u-boot-nsy-g68-plus-rk3568/u-boot-*/.config`
+- 镜像位置：`/etc/uboot.config`
+- Release 资产：`uboot.config`（与固件同 Release，便于事后核对）
+- 当前值：`CONFIG_ROCKCHIP_BOOT_MODE_REG=0xfdc20200`、`CONFIG_ADC=y`、`CONFIG_SPL_ADC=y`
+
+> generic 变体同样保留该文件（它是信息文件，不是脚本）。
