@@ -1,6 +1,6 @@
 # G68-PLUS 固件 · 下次编译详细教程
 
-> 仓库：<https://github.com/iiibeloved/immortalwrt-rk356x>
+> 仓库：<https://github.com/iiibeloved/immortalwrt-rk356x-standalone-standalone>
 > 目标：rockchip / armv8 / `DEVICE_nsy_g68-plus`（NSY G68-PLUS，RK3568，aarch64_generic，Linux 6.6）
 > 当前配置：`defconfig/g68-plus-docker.config` + `defconfig/g68-plus-istoreos.config`
 > 文档更新：2026-11-06（基于 run #42186516665 首次成功构建的实测数据）
@@ -34,7 +34,7 @@
 
 ### 1.2 网页手动触发（推荐用于验证改动）
 
-1. 打开 <https://github.com/iiibeloved/immortalwrt-rk356x/actions/workflows/build-g68-plus-docker.yml>
+1. 打开 <https://github.com/iiibeloved/immortalwrt-rk356x-standalone-standalone/actions/workflows/build-g68-plus-docker.yml>
 2. 右上角 **Run workflow** → 分支选 `main`
 3. 按下表填参数（全部有默认值，一般直接点绿色按钮）
 
@@ -54,10 +54,10 @@
 ```bash
 # 方式 A: gh CLI
 gh workflow run build-g68-plus-docker.yml \
-  --repo iiibeloved/immortalwrt-rk356x --ref main \
+  --repo iiibeloved/immortalwrt-rk356x-standalone-standalone --ref main \
   -f defconfig=defconfig/g68-plus-docker.config \
   -f extra_config=defconfig/g68-plus-istoreos.config \
-  -f rootfs_size=2048 \
+  -f rootfs_size=200 \
   -f rootfs_data_size=4096 \
   -f upload_artifacts=true \
   -f publish_release=true
@@ -66,11 +66,11 @@ gh workflow run build-g68-plus-docker.yml \
 curl -X POST \
   -H "Authorization: Bearer $GH_TOKEN" \
   -H "Accept: application/vnd.github+json" \
-  https://api.github.com/repos/iiibeloved/immortalwrt-rk356x/actions/workflows/build-g68-plus-docker.yml/dispatches \
+  https://api.github.com/repos/iiibeloved/immortalwrt-rk356x-standalone-standalone/actions/workflows/build-g68-plus-docker.yml/dispatches \
   -d '{"ref":"main","inputs":{
         "defconfig":"defconfig/g68-plus-docker.config",
         "extra_config":"defconfig/g68-plus-istoreos.config",
-        "rootfs_size":"2048",
+        "rootfs_size":"200",
         "rootfs_data_size":"4096",
         "upload_artifacts":"true",
         "publish_release":"true"}}'
@@ -79,7 +79,7 @@ curl -X POST \
 触发成功返回 `204 No Content`；用下面命令确认：
 
 ```bash
-gh run list --repo iiibeloved/immortalwrt-rk356x --limit 3
+gh run list --repo iiibeloved/immortalwrt-rk356x-standalone --limit 3
 ```
 
 ### 1.4 什么情况下会自动触发（以及不会）
@@ -143,7 +143,7 @@ GH_TOKEN=<token> python3 scripts/watch_build.py --no-wait        # 只看当前�
 
 ## 3. 怎么看进度 / 怎么判断成功
 
-- run 列表：<https://github.com/iiibeloved/immortalwrt-rk356x/actions>
+- run 列表：<https://github.com/iiibeloved/immortalwrt-rk356x-standalone/actions>
 - 单个 run：点进去 → 左侧 job `rockchip/armv8 · nsy_g68-plus` → 步骤列表、点步骤展开实时日志
 - 成功后：页面底部 **Artifacts** 出现 `immortalwrt-g68-plus-<n>`，同时 **Releases** 里多一个 tag
 - 失败后：底部会多一个 `build-log-<n>`，下载解压可看到 4 个日志（见第 6 节）
@@ -170,12 +170,12 @@ workflow 最后有一步「构建失败时自动开 issue」（`if: failure()`�
 | 类型 | 位置 | 有效期 | 是否需要登录 |
 | --- | --- | --- | --- |
 | artifact | run 页面底部 Artifacts | **15 天** | 需要 GitHub 登录 |
-| Release 资产 | `https://github.com/iiibeloved/immortalwrt-rk356x/releases/tag/<tag>` | 长期 | **不需要** |
+| Release 资产 | `https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/tag/<tag>` | 长期 | **不需要** |
 
 Release 直链格式：
 
 ```
-https://github.com/iiibeloved/immortalwrt-rk356x/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz
+https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz
 ```
 
 该机型（`pine64-img` 流程）**只产出 `sysupgrade.img.gz`**，没有单独的 sdcard 镜像；
@@ -340,8 +340,8 @@ generic 的定位：**像新装系统一样**——分区、挂载、docker 数�
 
 ```bash
 # 1) 下载
-curl -LO https://github.com/iiibeloved/immortalwrt-rk356x/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz
-curl -LO https://github.com/iiibeloved/immortalwrt-rk356x/releases/download/<tag>/sha256sums
+curl -LO https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz
+curl -LO https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/download/<tag>/sha256sums
 
 # 2) 校验（必须做，写错设备会变砖）
 sha256sum -c sha256sums --ignore-missing
@@ -790,7 +790,7 @@ netstat -lntp | grep 7681        # 应看到 0.0.0.0:7681（而不是旧的 LAN 
 ### 7.12 回滚 / 删除发布
 
 ```bash
-gh release delete g68-plus-2026.11.06 --repo iiibeloved/immortalwrt-rk356x --cleanup-tag
+gh release delete g68-plus-2026.11.06 --repo iiibeloved/immortalwrt-rk356x-standalone --cleanup-tag
 ```
 
 ---
@@ -901,15 +901,15 @@ https://ghproxy.net/https://github.com/<owner>/<repo>/releases/download/<tag>/<f
 
 | 方式 | 链接 |
 | --- | --- |
-| GitHub 直链 | `https://github.com/iiibeloved/immortalwrt-rk356x/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz` |
-| 加速 1 | `https://gh-proxy.com/https://github.com/iiibeloved/immortalwrt-rk356x/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz` |
-| 加速 2 | `https://ghfast.top/https://github.com/iiibeloved/immortalwrt-rk356x/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz` |
-| 加速 3 | `https://ghproxy.net/https://github.com/iiibeloved/immortalwrt-rk356x/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz` |
+| GitHub 直链 | `https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz` |
+| 加速 1 | `https://gh-proxy.com/https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz` |
+| 加速 2 | `https://ghfast.top/https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz` |
+| 加速 3 | `https://ghproxy.net/https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/download/<tag>/immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz` |
 
 `sha256sums` 同样可加前缀：
 
 ```
-https://gh-proxy.com/https://github.com/iiibeloved/immortalwrt-rk356x/releases/download/<tag>/sha256sums
+https://gh-proxy.com/https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/download/<tag>/sha256sums
 ```
 
 > 2026-11-07 实测三个代理对该仓库的 Release 资产均返回 `206`（支持断点续传）；

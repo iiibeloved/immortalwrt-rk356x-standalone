@@ -10,7 +10,7 @@
 """
 import argparse, json, os, struct, subprocess, sys, time, urllib.error, urllib.request, zlib
 
-OWNER, REPO = "iiibeloved", "immortalwrt-rk356x"
+OWNER, REPO = "iiibeloved", "immortalwrt-rk356x-standalone"
 API = "https://api.github.com"
 TK = os.environ.get("GH_TOKEN", "").strip()
 PROXIES = ["https://gh-proxy.com/", "https://ghfast.top/", "https://ghproxy.net/"]

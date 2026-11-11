@@ -1,6 +1,6 @@
 # G68-PLUS · iStoreOS 风格固件 CI 构建说明
 
-针对仓库 <https://github.com/iiibeloved/immortalwrt-rk356x>（`main` 分支）的 GitHub Actions 编译方案。
+针对仓库 <https://github.com/iiibeloved/immortalwrt-rk356x-standalone>（`main` 分支，独立仓库）的 GitHub Actions 编译方案。
 
 ## 1. 仓库结构分析结论
 
@@ -90,8 +90,8 @@ sha256sums / config.buildinfo / config.applied                      # 校验与�
 ## 6. 本地等价复现
 
 ```bash
-git clone --depth 1 https://github.com/iiibeloved/immortalwrt-rk356x.git
-cd immortalwrt-rk356x
+git clone --depth 1 https://github.com/iiibeloved/immortalwrt-rk356x-standalone.git
+cd immortalwrt-rk356x-standalone
 cp feeds.conf.default feeds.conf
 echo 'src-git small https://github.com/kenzok8/small-package.git;main' >> feeds.conf
 ./scripts/feeds update -a && ./scripts/feeds install -a
@@ -139,8 +139,8 @@ ls bin/targets/rockchip/armv8/
 
 ```bash
 # 方式 A：本地放进克隆的仓库再推
-git clone https://github.com/iiibeloved/immortalwrt-rk356x.git
-cd immortalwrt-rk356x
+git clone https://github.com/iiibeloved/immortalwrt-rk356x-standalone.git
+cd immortalwrt-rk356x-standalone
 mkdir -p .github/workflows
 cp /path/to/build-g68-plus-docker.yml .github/workflows/
 cp /path/to/g68-plus-istoreos.config   defconfig/
@@ -158,7 +158,7 @@ git push origin main
 
 | 项目 | 结果 |
 | --- | --- |
-| run | [#42186516665](https://github.com/iiibeloved/immortalwrt-rk356x/actions/runs/42186516665)，commit `c6b3a90d` |
+| run | [#42186516665](https://github.com/iiibeloved/immortalwrt-rk356x/actions/runs/42186516665)（迁移前的 fork 仓库），commit `c6b3a90d` |
 | 总耗时 | **4 小时 09 分**（16:17 → 20:26，Asia/Shanghai） |
 | 阶段耗时 | 准备 25 min · 下载 6 min · 工具链 34 min · rust 118 min · 世界构建 72 min |
 | artifact | `immortalwrt-g68-plus-6`，165.4 MB |
@@ -204,7 +204,7 @@ d4a1908a71dc8b7977eb626b07b0f291b575cc35b3958757b58aaec56eeba41d
 构建成功后会**自动**把固件挂到 GitHub Release，产出无需登录、不随 artifact 过期的直链：
 
 ```
-https://github.com/iiibeloved/immortalwrt-rk356x/releases/download/<tag>/<file>.img.gz
+https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/download/<tag>/<file>.img.gz
 ```
 
 - **tag 规则**：`g68-plus-YYYY.MM.DD`（按 Asia/Shanghai 日期）；同一天已有同名 Release 时自动加 `-r<run_number>`，

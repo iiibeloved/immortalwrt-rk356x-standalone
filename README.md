@@ -172,7 +172,7 @@ docker info | grep -i 'docker root dir'
 
 ## 9. 下载与文档
 
-- 下载：见 [Releases](https://github.com/iiibeloved/immortalwrt-rk356x/releases)；直连慢时在链接前加
+- 下载：见 [Releases](https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases)；直连慢时在链接前加
   `https://gh-proxy.com/`（或 `ghfast.top` / `ghproxy.net`），sha256 不变
 - [docs/first-boot-checklist.md](docs/first-boot-checklist.md)：刷机后完整操作流程（按重要程度）
 - [docs/build-guide.md](docs/build-guide.md)：构建/刷机/维护全教程（含 USB maskrom、dd、手动分区、附录）

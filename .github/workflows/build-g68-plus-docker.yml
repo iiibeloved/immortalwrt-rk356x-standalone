@@ -97,6 +97,8 @@ env:
 
   CONFIG_FILE: ${{ github.event.inputs.defconfig || 'defconfig/g68-plus-docker.config' }}
   EXTRA_CONFIG: ${{ github.event.inputs.extra_config || 'defconfig/g68-plus-istoreos.config' }}
+  # 变体: full | generic（generic 会裁掉 files/ 里的固化脚本与配置）
+  VARIANT: ${{ github.event.inputs.variant || 'full' }}
   # 注意: 该值会在「应用 defconfig 与附加配置」步骤里覆盖 defconfig 中的 CONFIG_TARGET_ROOTFS_PARTSIZE
   ROOTFS_SIZE: ${{ github.event.inputs.rootfs_size || '200' }}
   # rootfs_data 大小(传给 scripts/gen_image_generic.sh, 它读这个环境变量)
@@ -739,10 +741,15 @@ jobs:
                 curl -s -o /dev/null -X DELETE -H "Authorization: Bearer $GH_TOKEN" "$API/releases/assets/$OLD_ID"
                 echo "已删除同名旧资产: $ANAME"
               fi
-              curl -s -o /dev/null -w "上传 $ANAME HTTP %{http_code}\n" -X POST \
+              CODE=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
                 -H "Authorization: Bearer $GH_TOKEN" -H 'Content-Type: application/octet-stream' \
                 --data-binary "@$ASSET" \
-                "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$REL_ID/assets?name=$ANAME"
+                "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$REL_ID/assets?name=$ANAME")
+              echo "上传 $ANAME HTTP $CODE"
+              case "$CODE" in
+                201|200) ;;
+                *) echo "::error::上传 $ANAME 失败 HTTP $CODE"; exit 1 ;;
+              esac
             done
 
             # --- Release 说明：追加段落，幂等（重复追加时替换旧段落，不重复堆叠）---
@@ -763,9 +770,14 @@ jobs:
               echo "<!-- generic-append:end -->"
             } > /tmp/body.json
             jq -Rs '{body: .}' /tmp/body.json > /tmp/body_payload.json
-            curl -s -o /dev/null -w "更新 Release 说明 HTTP %{http_code}\n" -X PATCH \
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' -X PATCH \
               -H "Authorization: Bearer $GH_TOKEN" -H 'Content-Type: application/json' \
-              --data-binary @/tmp/body_payload.json "$API/releases/$REL_ID"
+              --data-binary @/tmp/body_payload.json "$API/releases/$REL_ID")
+            echo "更新 Release 说明 HTTP $CODE"
+            case "$CODE" in
+              200) ;;
+              *) echo "::error::更新 Release 说明失败 HTTP $CODE"; exit 1 ;;
+            esac
           fi
           echo "---- Release 资产 ----"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
