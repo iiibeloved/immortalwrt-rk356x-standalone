@@ -807,7 +807,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: full 成功后自动触发 generic 追编
-        if: ${{ success() && env.VARIANT == 'full' && steps.release.outputs.tag != '' }}
+        if: ${{ success() && env.VARIANT == 'full' && steps.release.outputs.tag }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
