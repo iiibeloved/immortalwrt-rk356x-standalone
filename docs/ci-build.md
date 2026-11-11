@@ -49,8 +49,11 @@ immortalwrt-rockchip-armv8-nsy_g68-plus-squashfs-sysupgrade.img.gz  # 唯一镜�
 immortalwrt-rockchip-armv8-nsy_g68-plus.manifest                    # 包清单
 sha256sums / config.buildinfo / config.applied                      # 校验与配置留档
 
-> 实测: 该设备(pine64-img 流程)只产出 `sysupgrade.img.gz`(约 175 MB 未压缩),
-> 没有单独的 sdcard.img.gz; 解压后用 dd / balenaEtcher 写入 eMMC 或 SD 卡即可。
+> 实测: 该设备(pine64-img 流程)只产出 `sysupgrade.img.gz`(**gzip 压缩后**约 175 MB / 167 MiB，
+> 解压后约 296 MiB)，没有单独的 sdcard.img.gz; 解压后用 dd / balenaEtcher 写入 eMMC 或 SD 卡即可。
+> 镜像文件远小于分区表标称容量属正常:`Build/pine64-img` 只设了 `PADDING=1` 用于填 kernel/rootfs，
+> `rootfs_data` 分区不写 4 GiB 全零，镜像因此保持稀疏; MBR 分区表仍标明 16 / 200 / 4096 MiB。
+> CI 的「校验镜像分区表」步骤解析 MBR 判断 16/200/4096，**不按镜像体积判断**。
 ```
 
 编译失败时额外上传 `build-log-<run_number>.zip`（`build.log`，含失败前的完整输出）。
@@ -127,8 +130,12 @@ ls bin/targets/rockchip/armv8/
   - `rootfs`（只读系统分区，squashfs）由输入 `rootfs_size` 决定，默认 **200 MiB**，写入 `CONFIG_TARGET_ROOTFS_PARTSIZE`；
   - `rootfs_data`（可写 overlay：iStore/opkg 装包、docker 数据、配置）由输入 `rootfs_data_size` 决定，默认 **4096 MiB**，
     以环境变量 `ROOTFS_DATA_PARTSIZE` 传给 `scripts/gen_image_generic.sh`（该脚本默认值 4096，上游原值 2048）。
-  默认整盘镜像约 **4.3 GiB**（kernel/boot 16 MiB + rootfs 200 MiB + rootfs_data 4096 MiB），
-  产物体积与 artifact 上传时间相应增加；若要最小镜像，调小 `rootfs_data_size`（如 1024）即可。
+  **分区表标称**整盘约 **4.3 GiB**（kernel/boot 16 MiB + rootfs 200 MiB + rootfs_data 4096 MiB），
+  但镜像文件不会膨胀到这个大小:实测 gzip 后约 175 MB、解压后仅 296 MiB，artifact 体积与
+  `rootfs_data_size` 基本无关。镜像里 `rootfs_data` 分区只写入一个很小的占位 ext4（superblock
+  显示 8 MiB）；设备首次启动时由 fstools 依据分区表把该分区初始化为标称容量，刷机后
+  `df -h /overlay` 实测 **4.00 GiB**（可用 3.52 GiB）。
+  所以**不要**用「镜像体积 ≥ 4.2 GiB」判断 4096 MiB 是否生效，只读 MBR 分区表即可。
 - **iStore 商店与 quickstart 的面板依赖 LuCI 前端能力**，在 24.10（Lua LuCI）上属“社区常用组合”，
   首次刷机后请实际打开 `系统 → 快速配置`、`iStore`、`网络存储 → 共享` 三项确认可用，再决定是否长期跟进。
 - 工作流产物无签名、无 `opkg` 仓库，仅作为整机固件使用。
