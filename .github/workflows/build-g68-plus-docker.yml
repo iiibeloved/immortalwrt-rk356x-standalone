@@ -68,6 +68,9 @@ on:
         description: "可选：发布到指定 Release tag（留空=按日期新建；用于把 generic 产物追加进已有 Release）"
         required: false
         default: ""
+  # 供脚本/CI 链式触发（如 full 成功后自动追编 generic），权限只需 contents:write
+  repository_dispatch:
+    types: [g68-build]
   push:
     branches: [ main ]
     paths:
@@ -98,7 +101,7 @@ env:
   CONFIG_FILE: ${{ github.event.inputs.defconfig || 'defconfig/g68-plus-docker.config' }}
   EXTRA_CONFIG: ${{ github.event.inputs.extra_config || 'defconfig/g68-plus-istoreos.config' }}
   # 变体: full | generic（generic 会裁掉 files/ 里的固化脚本与配置）
-  VARIANT: ${{ github.event.inputs.variant || 'full' }}
+  VARIANT: ${{ github.event.inputs.variant || github.event.client_payload.variant || 'full' }}
   # 注意: 该值会在「应用 defconfig 与附加配置」步骤里覆盖 defconfig 中的 CONFIG_TARGET_ROOTFS_PARTSIZE
   ROOTFS_SIZE: ${{ github.event.inputs.rootfs_size || '200' }}
   # rootfs_data 大小(传给 scripts/gen_image_generic.sh, 它读这个环境变量)
@@ -636,7 +639,7 @@ jobs:
           fi
           # tag: 优先用 publish_tag（把 generic 追加进已有 Release）；否则按日期新建
           CREATE=1
-          TAG="${{ inputs.publish_tag }}"
+          TAG="${{ inputs.publish_tag || github.event.client_payload.publish_tag }}"
           if [ -n "$TAG" ]; then
             CREATE=0
             echo "追加模式：发布到已有 Release $TAG"

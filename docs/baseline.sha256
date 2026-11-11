@@ -2,7 +2,7 @@
 # 校验: sha256sum -c docs/baseline.sha256
 f0f936847c137155b75be5f94be488529e2e0732794e209c112c970010a80428  defconfig/g68-plus-docker.config
 9b79cb37529bdb1bc4b05e8a8facd854b70ba406e36cc3fe594df97716f51b76  defconfig/g68-plus-istoreos.config
-affc700b6d3567371cf805c926a414de7b99e9a3392f5d063565a274082a0414  .github/workflows/build-g68-plus-docker.yml
+d2447bd925f6ffb10424e0616ec7766451f4a11e52ca552e971b287026430226  .github/workflows/build-g68-plus-docker.yml
 5990b8bb7bd53886743551e3a33a8de621bd77593c3379d237fdb632c1fbbcf2  .github/workflows/publish-release.yml
 f6d59494a9c88f5fe4e2175f00067eb5b5160a32b903b0a16f726a7b99903e98  scripts/gen_image_generic.sh
 c4b17ba2850b0df9d1ec49030c8cb1f518ec3246e31ece6a6bae969b8491ec95  scripts/release-append-lib.sh
