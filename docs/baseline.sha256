@@ -52,3 +52,12 @@ df6b7428209608812c527ec22ac86d332cf46b084af9128b16abcbc7fa412d0c  files/usr/lib/
 ce56b3279917812d375f59a7741c07aa3905607cb1dd5a95a539f5e55a8336c7  files/usr/share/luci/menu.d/luci-app-timecontrol.json
 347122e6cd9f551064ce005e21762c64da7df1f35bdca0ccf0b0caf07f53371d  files/www/luci-static/resources/view/timecontrol/basic.js
 6df055ba25651b575428199e8aa9d8135b35ed90929b60a6903834093d9633d4  files/www/luci-static/resources/view/timecontrol/log.js
+76c4a58955172953af8f00d60da7e283dee38e744f1b81ba4ef3225417c77ceb  files/usr/lib/lua/luci/model/cbi/filetransfer.lua
+14aa68ed6ff79fd67b83a7a397755bf2fc0e8ea2fad8900a823761757502523c  files/usr/lib/lua/luci/view/filetransfer/manage.htm
+8cd411a6d71c6cc9b437e5e2e408e251664e0824360f710a49d003e92b18b36f  files/usr/lib/lua/luci/view/filetransfer/log.htm
+0890751c71062560bed8b8a64c9167193307970bb9b45566edbf9d62802b3964  files/usr/lib/lua/luci/view/filetransfer/main.htm
+9896a18d0bb10b33072429f799548d7710765ea4eacb6090bb9e0d456d39f484  files/usr/lib/lua/luci/view/store/main.htm
+2c1522c71c5a9662cc5960ff61a119302b308b97f5088b4e7e9b6fdf51e1ad3b  files/usr/lib/lua/luci/controller/store.lua
+ff67a2844ab7d07b7edc14415e34a3d03831f2bd8e43bcebd1fd05f69bf6db49  files/usr/lib/lua/luci/controller/filetransfer.lua
+2914519a4b551a1fbdb694a924861c63d9f9742854a8c07542bae8a776f91bb3  files/www/luci-static/resources/view/lan-scanner.js
+999bd8423a9d05293ebd2457b7321729db0ebaa880735323b2360ca069aa41a0  files/www/luci-static/resources/view/emmc-health.js
