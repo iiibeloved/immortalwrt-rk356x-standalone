@@ -488,6 +488,28 @@ jobs:
           timeout 1200 make -j1 V=s "$RUST_TARGET" 2>&1 | tee -a rust-host.log || true
           exit 1
 
+      - name: 预编 u-boot 并归档 .config（供设备内 cat /etc/uboot.config 查询）
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 先只编 u-boot（随后全量 make 会复用其 stamp，不重复编）
+          if ! make -j"$(nproc)" package/boot/uboot-rockchip/compile V=s > /tmp/uboot-pre.log 2>&1; then
+            echo "::warning::预编 u-boot 失败，继续全量构建（日志见下方）"
+            tail -40 /tmp/uboot-pre.log || true
+          fi
+          UB_CFG=$(find build_dir -path '*u-boot-*/u-boot-*/.config' | grep -E 'nsy-g68' | head -1 || true)
+          [ -n "$UB_CFG" ] || UB_CFG=$(find build_dir -path '*u-boot-*/.config' | head -1 || true)
+          if [ -n "$UB_CFG" ]; then
+            echo "u-boot .config: $UB_CFG"
+            mkdir -p files/etc
+            cp "$UB_CFG" files/etc/uboot.config
+            cp "$UB_CFG" ../uboot.config
+            echo "--- 关键项 ---"
+            grep -E '^CONFIG_(ROCKCHIP_BOOT_MODE_REG|ADC|SPL_ADC|SARADC_ROCKCHIP|CMD_ROCKUSB)=' files/etc/uboot.config || true
+          else
+            echo "::warning::未找到 u-boot .config，跳过归档"
+          fi
+
       - name: 编译固件
         run: |
           set -o pipefail
@@ -610,6 +632,7 @@ jobs:
               \) -exec cp -v {} output/ \;
           fi
           cp -v .config output/config.applied 2>/dev/null || true
+          cp -v ../uboot.config output/uboot.config 2>/dev/null || cp -v files/etc/uboot.config output/uboot.config 2>/dev/null || true
           echo "---- output ----"
           ls -lh output/ || true
           {
@@ -729,7 +752,7 @@ jobs:
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
               --title "ImmortalWrt G68-PLUS · ${TAG}" \
               --notes-file /tmp/notes.md \
-              "$IMG" "$T/sha256sums"
+              "$IMG" "$T/sha256sums" "output/uboot.config"
           else
             # 追加资产：直接用 REST API（gh release upload 在部分情况下返回 404，用 REST 更稳）
             API="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY"
