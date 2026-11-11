@@ -31,3 +31,7 @@ f48add100eb91cd175351357022cf76dbb4a68318471e2695cb98eca333208cd  files/etc/uci-
 3aade120680e5a2343174fc078b2131b63b1771c684bafee1de624546630f048  files/usr/share/luci/menu.d/luci-app-ksgc.json
 f59b6f5d7877a7332bee4caca8da7eca83201aa3ee47083ec942daebe14a2344  files/usr/share/rpcd/acl.d/luci-app-ksgc.json
 87076d144659640aad9558e98efc7c51d754883e4ccf01ec32efd99dc9df8542  files/www/luci-static/resources/view/ksgc/ksgc.js
+759811892ab91ed1d12fa491a9715ffec476ac64254c19708f4457ec5f7610a9  files/usr/bin/bing-wallpaper
+549a30b0880e02bf96c311f1e3a9b737f648f197a5e6b043caa78df76fe16877  files/usr/share/luci/menu.d/luci-app-bingwallpaper.json
+b9b5104038e7dda39873157632f59f82fcd4dfd98afb09189c39ba3a5958d351  files/usr/share/rpcd/acl.d/luci-app-bingwallpaper.json
+5555daa70374aa713e73465ebc4b832e4acd9991a629e01f8fea241ac6792990  files/www/luci-static/resources/view/bingwallpaper/bingwallpaper.js
