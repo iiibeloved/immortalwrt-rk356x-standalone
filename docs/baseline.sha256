@@ -31,3 +31,6 @@ f48add100eb91cd175351357022cf76dbb4a68318471e2695cb98eca333208cd  files/etc/uci-
 3aade120680e5a2343174fc078b2131b63b1771c684bafee1de624546630f048  files/usr/share/luci/menu.d/luci-app-ksgc.json
 f59b6f5d7877a7332bee4caca8da7eca83201aa3ee47083ec942daebe14a2344  files/usr/share/rpcd/acl.d/luci-app-ksgc.json
 87076d144659640aad9558e98efc7c51d754883e4ccf01ec32efd99dc9df8542  files/www/luci-static/resources/view/ksgc/ksgc.js
+39e787d0bedacc704b7f9b30c454911c253072625f50ec79f63d9477171ef0b6  files/usr/lib/lua/luci/controller/dockermanager.lua
+a9bc96932dd0189a45cf61738ca3fac231e8b7b15bb0fd18190922a29e771695  files/usr/lib/lua/luci/model/cbi/dockermanager.lua
+01f8e9febe481db3eb8203bb51454b7dc7546eb77dc3535bc0f738bb3d558ebf  files/usr/lib/lua/luci/view/dockermanager_status.htm
