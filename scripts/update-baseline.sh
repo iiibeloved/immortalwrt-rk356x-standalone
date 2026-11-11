@@ -20,6 +20,7 @@ trap 'rm -f "$TMP"' EXIT
 		echo .github/workflows/build-g68-plus-docker.yml
 		echo .github/workflows/publish-release.yml
 		echo scripts/gen_image_generic.sh
+		echo scripts/release-append-lib.sh
 		# files/ 全量纳入, 避免新增内置脚本后漏校验
 		find files -type f | sort
 	} | while read -r f; do

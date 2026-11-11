@@ -524,11 +524,13 @@ jobs:
           python3 - <<'PY'
           import glob, gzip, os, struct, sys
 
-          imgs = glob.glob('bin/targets/rockchip/armv8/*.img.gz')
+          imgs = sorted(glob.glob('bin/targets/rockchip/armv8/*.img.gz'))
           if not imgs:
               print('::error::没有找到 *.img.gz')
               sys.exit(1)
-          img = imgs[0]
+          # sdcard 镜像才是带 MBR 分区表的整盘镜像；sysupgrade 布局不同，优先排除
+          sd = [p for p in imgs if 'sdcard' in p]
+          img = (sd or imgs)[0]
           print('镜像:', img)
           with gzip.open(img, 'rb') as f:
               head = f.read(8 * 1024 * 1024)
@@ -549,7 +551,7 @@ jobs:
               print(f'| p{i+1} | {lba*512/1048576:.0f} MiB | {size_mib:.0f} |')
 
           want_kernel = 16
-          want_rootfs = int(os.environ.get('ROOTFS_SIZE', '2048'))
+          want_rootfs = int(os.environ.get('ROOTFS_SIZE', '200'))
           want_data = int(os.environ.get('ROOTFS_DATA_PARTSIZE', '4096'))
           print()
           print(f'期望: kernel≈{want_kernel} MiB, rootfs≈{want_rootfs} MiB, rootfs_data≈{want_data} MiB')
@@ -657,7 +659,7 @@ jobs:
               IMG="$T/$NEWNAME"
             fi
           fi
-          PKGS=$(grep -c ' - ' "$T"/*.manifest 2>/dev/null || echo 0)
+          PKGS=$(cat "$T"/*.manifest 2>/dev/null | grep -c ' - ' || true)
           KVER=$(sed -n 's/^CONFIG_LINUX_\([0-9]\)_\([0-9]*\)=y/\1.\2/p' .config | head -1 || true)
           SHA=$(sha256sum "$IMG" | cut -d' ' -f1)
           {
