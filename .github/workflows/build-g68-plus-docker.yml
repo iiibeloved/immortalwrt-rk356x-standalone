@@ -650,8 +650,11 @@ jobs:
           # （sha256sums 的合并放到追加分支里做：需要先读 Release 上已有的条目再合并，不能本地覆盖）
           if [ "${VARIANT:-full}" = "generic" ] && [ "$CREATE" = "0" ]; then
             BASE_IMG="$(basename "$IMG" .img.gz)"
-            mv "$IMG" "$T/${BASE_IMG}-generic.img.gz"
-            IMG="$T/${BASE_IMG}-generic.img.gz"
+            # 已带 -generic 后缀就不再追加（重复执行/同树重跑时避免变成 -generic-generic）
+            if [ "${BASE_IMG%-generic}" = "$BASE_IMG" ]; then
+              mv "$IMG" "$T/${BASE_IMG}-generic.img.gz"
+              IMG="$T/${BASE_IMG}-generic.img.gz"
+            fi
           fi
           PKGS=$(grep -c ' - ' "$T"/*.manifest 2>/dev/null || echo 0)
           KVER=$(sed -n 's/^CONFIG_LINUX_\([0-9]\)_\([0-9]*\)=y/\1.\2/p' .config | head -1 || true)
@@ -718,9 +721,7 @@ jobs:
 
             # --- sha256sums: 与 Release 上已有条目合并，不能覆盖（否则 full 的条目丢失）---
             ANAME="$(basename "$IMG")"
-            # generic 重命名后的旧名（不带 -generic 后缀），合并时一并剔除
-            OLDNAME="$ANAME"
-            case "$ANAME" in *-generic.img.gz) OLDNAME="${ANAME%-generic.img.gz}.img.gz" ;; esac
+            # 只剔除本变体（-generic）的旧条目；不带后缀的那条属于 full 变体，必须保留
             EXIST_ID=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "$API/releases/$REL_ID/assets" \
               | jq -r '.[] | select(.name=="sha256sums") | .id' | head -1)
             : > /tmp/sums.base
@@ -729,7 +730,7 @@ jobs:
               curl -sL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/octet-stream' \
                 "$API/releases/assets/$EXIST_ID" -o /tmp/sums.base || true
             fi
-            { grep -vE "  ${ANAME//./\\.}$|  ${OLDNAME//./\\.}$" /tmp/sums.base 2>/dev/null || true; } > /tmp/sums.new
+            { grep -vE "  ${ANAME//./\\.}$" /tmp/sums.base 2>/dev/null || true; } > /tmp/sums.new
             ( cd "$T" && sha256sum "$ANAME" ) >> /tmp/sums.new
             cp /tmp/sums.new "$T/sha256sums"
             echo "---- 合并后的 sha256sums ----"; cat "$T/sha256sums"
