@@ -55,20 +55,63 @@ jobs:
           ls -lh ./*.img.gz ./sha256sums
           sha256sum ./*.img.gz
 
-      - name: 上传到 Release
+      - name: 检出逻辑脚本
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 上传到 Release (REST API, 复用 release-append-lib)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if gh release view "${{ inputs.tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release 已存在, 直接上传资产"
-          else
-            gh release create "${{ inputs.tag }}" \
-              --repo "${{ github.repository }}" \
-              --title "ImmortalWrt G68-PLUS · ${{ inputs.tag }}" \
-              --notes "由构建 ${{ inputs.run_id }} 发布的固件"
+          . scripts/release-append-lib.sh
+          API="$GITHUB_API_URL/repos/${GITHUB_REPOSITORY}"
+          TAG="${{ inputs.tag }}"
+          AUTH="Authorization: Bearer $GH_TOKEN"
+
+          REL_ID=$(curl -s -H "$AUTH" "$API/releases/tags/$TAG" | jq -r '.id // empty')
+          if [ -z "${REL_ID:-}" ]; then
+            echo "Release 不存在, 创建 $TAG"
+            REL_ID=$(curl -s -X POST -H "$AUTH" -H 'Content-Type: application/json' \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"ImmortalWrt G68-PLUS · $TAG\",\"notes\":\"由构建 ${{ inputs.run_id }} 发布的固件\"}" \
+              "$API/releases" | jq -r '.id // empty')
           fi
-          gh release upload "${{ inputs.tag }}" ./*.img.gz ./sha256sums \
-            --clobber --repo "${{ github.repository }}"
+          [ -n "${REL_ID:-}" ] && [ "$REL_ID" != "null" ] || { echo "::error::无法获取/创建 Release $TAG"; exit 1; }
+
+          # 合并已有 sha256sums（保留其它变体的条目），下载必须校验 HTTP
+          EXIST_ID=$(curl -s -H "$AUTH" "$API/releases/$REL_ID/assets" \
+            | jq -r '.[] | select(.name=="sha256sums") | .id' | head -1)
+          : > /tmp/sums.base
+          if [ -n "${EXIST_ID:-}" ] && [ "$EXIST_ID" != "null" ]; then
+            CODE=$(curl -sL -w '%{http_code}' -H "$AUTH" -H 'Accept: application/octet-stream' \
+              "$API/releases/assets/$EXIST_ID" -o /tmp/sums.base) || CODE=000
+            [ "$CODE" = "200" ] || { echo "::error::下载旧 sha256sums 失败 HTTP $CODE"; exit 1; }
+          fi
+          cp /tmp/sums.base /tmp/sums.acc
+          for f in ./*.img.gz; do
+            merge_sums /tmp/sums.acc "$(basename "$f")" "$(sha256sum "$f" | cut -d' ' -f1)" > /tmp/sums.next
+            mv /tmp/sums.next /tmp/sums.acc
+          done
+          cp /tmp/sums.acc sha256sums
+
+          for ASSET in ./*.img.gz ./sha256sums; do
+            ANAME=$(basename "$ASSET")
+            OLD=$(curl -s -H "$AUTH" "$API/releases/$REL_ID/assets" \
+              | jq -r --arg n "$ANAME" '.[]|select(.name==$n)|.id' | head -1)
+            if [ -n "${OLD:-}" ] && [ "$OLD" != "null" ]; then
+              curl -s -o /dev/null -X DELETE -H "$AUTH" "$API/releases/assets/$OLD"
+              echo "已删除同名旧资产: $ANAME"
+            fi
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+              -H "$AUTH" -H 'Content-Type: application/octet-stream' \
+              --data-binary "@$ASSET" \
+              "https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/$REL_ID/assets?name=$ANAME")
+            echo "上传 $ANAME HTTP $CODE"
+            case "$CODE" in
+              201|200) ;;
+              *) echo "::error::上传 $ANAME 失败 HTTP $CODE"; exit 1 ;;
+            esac
+          done
           echo "---- Release 资产 ----"
-          gh release view "${{ inputs.tag }}" --repo "${{ github.repository }}"
+          gh release view "$TAG" --repo "${{ github.repository }}"

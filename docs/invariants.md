@@ -60,7 +60,7 @@ uci-defaults 一次性脚本（执行后自动删除，**不要再手工创建�
 
 ## 5. 冻结基线（baseline）
 
-`docs/baseline.sha256` 锁定了 29 个关键文件（defconfig、工作流、内置脚本、软件源配置）。
+`docs/baseline.sha256` 锁定了 31 个关键文件（2 个 defconfig、2 个工作流、2 个脚本、25 个 files/ 内置文件）。
 CI 在「校验配置并打印目标」步骤做 `sha256sum -c`，**任一文件被动过就直接失败**。
 
 有意修改后必须：

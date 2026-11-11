@@ -1,2 +1,4 @@
 __pycache__/
 *.pyc
+# CI 运行时生成的构建信息文件（仓库里不存在，不应进入基线指纹）
+files/etc/g68-build

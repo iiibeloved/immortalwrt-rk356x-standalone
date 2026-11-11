@@ -19,6 +19,7 @@ import unittest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORKFLOW = os.path.join(REPO, ".github", "workflows", "build-g68-plus-docker.yml")
+PUBLISH_WF = os.path.join(REPO, ".github", "workflows", "publish-release.yml")
 LIB = os.path.join(REPO, "scripts", "release-append-lib.sh")
 
 
@@ -228,6 +229,45 @@ class TestWorkflowUsesLib(unittest.TestCase):
         self.assertTrue(os.path.isfile(LIB))
         r = subprocess.run(["sh", "-n", LIB], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
+
+
+class TestWorkflowGuards(unittest.TestCase):
+    """静态复审发现的细节问题，防止回退。"""
+
+    def setUp(self):
+        self.wf = read_workflow()
+        with open(PUBLISH_WF, encoding="utf-8") as f:
+            self.pub = f.read()
+
+    def test_full_triggers_generic_dispatch(self):
+        self.assertIn("event_type=g68-build", self.wf)
+        self.assertIn("client_payload[variant]=generic", self.wf)
+        self.assertIn("client_payload[publish_tag]", self.wf)
+        self.assertIn("id: release", self.wf)
+        self.assertIn('echo "tag=$TAG" >> "$GITHUB_OUTPUT"', self.wf)
+
+    def test_ci_runs_unit_tests(self):
+        self.assertIn("python3 -m unittest discover -s tests", self.wf)
+
+    def test_publish_release_uses_rest_not_gh_upload(self):
+        self.assertNotIn("gh release upload", self.pub)
+        self.assertIn("uploads.github.com", self.pub)
+        self.assertIn(". scripts/release-append-lib.sh", self.pub)
+        self.assertIn("merge_sums", self.pub)
+        self.assertIn("201|200) ;;", self.pub)
+
+    def test_sums_download_checks_http(self):
+        self.assertIn("-o /tmp/sums.base) || CODE=000", self.wf)
+        self.assertIn("-o /tmp/sums.base) || CODE=000", self.pub)
+
+    def test_off_packages_are_stripped(self):
+        # 两处都要剥掉 "# CONFIG_PACKAGE_" 与 " is not set"，否则永远匹配不上
+        stripped = self.wf.count("s/^# CONFIG_PACKAGE_//")
+        self.assertGreaterEqual(stripped, 2)
+
+    def test_artifact_name_uses_env_variant(self):
+        self.assertIn("(env.VARIANT == 'generic')", self.wf)
+        self.assertNotIn("github.event.inputs.variant == 'generic'", self.wf)
 
 
 if __name__ == "__main__":

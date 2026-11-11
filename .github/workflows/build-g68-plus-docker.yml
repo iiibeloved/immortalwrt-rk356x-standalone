@@ -140,6 +140,10 @@ jobs:
             echo "没有 files/ 目录, 跳过"
           fi
 
+      - name: 单元测试 (发布逻辑)
+        run: |
+          python3 -m unittest discover -s tests -v
+
       - name: 校验配置并打印目标
         run: |
           set -euo pipefail
@@ -381,8 +385,10 @@ jobs:
           fi
 
           # 预期关闭的包 (附加配置里的 "# CONFIG_PACKAGE_x is not set")
+          # 注意: grep -o 拿到的是整行, 必须先剥掉 "# CONFIG_PACKAGE_" 前缀与 " is not set" 后缀
           if [ -n "${EXTRA_CONFIG:-}" ] && [ -f "$EXTRA_CONFIG" ]; then
-            OFF=$(grep -oE '^# CONFIG_PACKAGE_[A-Za-z0-9_.+-]+ is not set$' "$EXTRA_CONFIG" 2>/dev/null || true)
+            OFF=$(grep -oE '^# CONFIG_PACKAGE_[A-Za-z0-9_.+-]+ is not set$' "$EXTRA_CONFIG" 2>/dev/null \
+                  | sed -e 's/^# CONFIG_PACKAGE_//' -e 's/ is not set$//' || true)
             for p in $OFF; do
                   if grep -qx "CONFIG_PACKAGE_${p}=y" .config; then
                     echo "| \`${p}\` | ⚠️ 预期关闭但仍启用 |" >> "$GITHUB_STEP_SUMMARY"
@@ -576,7 +582,10 @@ jobs:
             echo "| --- | --- | --- |"
             python3 - <<'PY'
           import glob, gzip, struct
-          img = glob.glob('bin/targets/rockchip/armv8/*.img.gz')[0]
+          # 与上面校验段保持同一选图逻辑：sdcard 优先，避免打印 sysupgrade 的伪分区表
+          imgs = sorted(glob.glob('bin/targets/rockchip/armv8/*.img.gz'))
+          sd = [p for p in imgs if 'sdcard' in p]
+          img = (sd or imgs)[0]
           with gzip.open(img, 'rb') as f:
               head = f.read(1024 * 1024)
           names = {0: 'kernel', 1: 'rootfs', 2: 'rootfs_data'}
@@ -616,12 +625,13 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.upload_artifacts != false }}
         uses: actions/upload-artifact@v4
         with:
-          name: immortalwrt-g68-plus-${{ github.run_number }}${{ (github.event.inputs.variant == 'generic') && '-generic' || '' }}
+          name: immortalwrt-g68-plus-${{ github.run_number }}${{ (env.VARIANT == 'generic') && '-generic' || '' }}
           path: output/*
           retention-days: 15
           if-no-files-found: warn
 
       - name: 发布到 Release (免登录直链)
+        id: release
         if: ${{ success() && (github.event_name != 'workflow_dispatch' || inputs.publish_release != false) }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -663,6 +673,7 @@ jobs:
             fi
           fi
           PKGS=$(cat "$T"/*.manifest 2>/dev/null | grep -c ' - ' || true)
+          PKGS=${PKGS:-0}
           KVER=$(sed -n 's/^CONFIG_LINUX_\([0-9]\)_\([0-9]*\)=y/\1.\2/p' .config | head -1 || true)
           SHA=$(sha256sum "$IMG" | cut -d' ' -f1)
           {
@@ -733,8 +744,14 @@ jobs:
             : > /tmp/sums.base
             if [ -n "${EXIST_ID:-}" ] && [ "$EXIST_ID" != "null" ]; then
               # 资产二进制下载需要 Accept: application/octet-stream
-              curl -sL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/octet-stream' \
-                "$API/releases/assets/$EXIST_ID" -o /tmp/sums.base || true
+              # 必须校验 HTTP: 失败时把错误 JSON 当旧条目合并会产出不可用的 sums
+              CODE=$(curl -sL -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
+                -H 'Accept: application/octet-stream' \
+                "$API/releases/assets/$EXIST_ID" -o /tmp/sums.base) || CODE=000
+              if [ "$CODE" != "200" ]; then
+                echo "::error::下载已有 sha256sums 失败 (HTTP $CODE), 中止以免生成错误校验文件"
+                exit 1
+              fi
             fi
             { merge_sums /tmp/sums.base "$ANAME" "$(cd "$T" && sha256sum "$ANAME" | cut -d' ' -f1)"; } > /tmp/sums.new
             cp /tmp/sums.new "$T/sha256sums"
@@ -787,6 +804,21 @@ jobs:
           fi
           echo "---- Release 资产 ----"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: full 成功后自动触发 generic 追编
+        if: ${{ success() && env.VARIANT == 'full' && steps.release.outputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.release.outputs.tag }}"
+          echo "full 构建成功，触发 generic 追加到 $TAG"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/dispatches" \
+            -f event_type=g68-build \
+            -f client_payload[variant]=generic \
+            -f client_payload[publish_tag]="$TAG"
+          echo "dispatch 已受理（generic 会因 concurrency 排在本次之后）"
 
       - name: 构建失败时自动开 issue
         if: ${{ failure() }}

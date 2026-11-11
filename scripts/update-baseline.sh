@@ -22,7 +22,8 @@ trap 'rm -f "$TMP"' EXIT
 		echo scripts/gen_image_generic.sh
 		echo scripts/release-append-lib.sh
 		# files/ 全量纳入, 避免新增内置脚本后漏校验
-		find files -type f | sort
+		# 排除 CI 运行时生成、仓库中不存在的文件（如 files/etc/g68-build）
+		find files -type f ! -name 'g68-build' | sort
 	} | while read -r f; do
 		if [ -f "$f" ]; then
 			sha256sum "$f"
