@@ -1,7 +1,7 @@
 # =============================================================================
 #  ImmortalWrt · rockchip/armv8 · NSY G68-PLUS (RK3568) · iStoreOS 风格
 #
-#  仓库   : https://github.com/iiibeloved/immortalwrt-rk356x  (branch: main)
+#  仓库   : https://github.com/iiibeloved/immortalwrt-rk356x-standalone  (branch: main)
 #  目标   : rockchip / armv8 / DEVICE_nsy_g68-plus / aarch64_generic / Linux 6.6
 #  基础   : defconfig/g68-plus-docker.config
 #  附加   : defconfig/g68-plus-istoreos.config
@@ -84,8 +84,6 @@ concurrency:
 
 env:
   TZ: Asia/Shanghai
-  REPO_URL: https://github.com/iiibeloved/immortalwrt-rk356x
-  REPO_BRANCH: main
 
   # feeds: 本树读 feeds.conf, 这里显式声明路径
   FEEDS_CONF: feeds.conf
@@ -623,7 +621,9 @@ jobs:
         run: |
           set -euo pipefail
           T=bin/targets/rockchip/armv8
-          IMG=$(ls "$T"/*.img.gz 2>/dev/null | head -1 || true)
+          # 优先取 sysupgrade 镜像（同目录还可能有 sdcard.img.gz）
+          IMG=$(ls "$T"/*sysupgrade.img.gz 2>/dev/null | head -1 || true)
+          [ -n "${IMG:-}" ] || IMG=$(ls "$T"/*.img.gz 2>/dev/null | head -1 || true)
           if [ -z "${IMG:-}" ]; then
             echo "::warning::没有找到 *.img.gz, 跳过 Release 发布"
             exit 0
@@ -645,12 +645,11 @@ jobs:
           fi
 
           # generic 追加到 full 的同一个 Release 时，资产名不能与 full 冲突 -> 加 -generic 后缀
+          # （sha256sums 的合并放到追加分支里做：需要先读 Release 上已有的条目再合并，不能本地覆盖）
           if [ "${VARIANT:-full}" = "generic" ] && [ "$CREATE" = "0" ]; then
             BASE_IMG="$(basename "$IMG" .img.gz)"
             mv "$IMG" "$T/${BASE_IMG}-generic.img.gz"
             IMG="$T/${BASE_IMG}-generic.img.gz"
-            grep -v -- "-generic.img.gz" "$T/sha256sums" > "$T/sha256sums.new" 2>/dev/null || true
-            ( cd "$T" && sha256sum "$(basename "$IMG")" >> sha256sums.new && mv sha256sums.new sha256sums )
           fi
           PKGS=$(grep -c ' - ' "$T"/*.manifest 2>/dev/null || echo 0)
           KVER=$(sed -n 's/^CONFIG_LINUX_\([0-9]\)_\([0-9]*\)=y/\1.\2/p' .config | head -1 || true)
@@ -714,10 +713,29 @@ jobs:
             API="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY"
             REL_ID=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "$API/releases/tags/$TAG" | jq -r .id)
             [ -n "$REL_ID" ] && [ "$REL_ID" != "null" ] || { echo "::error::找不到 Release $TAG"; exit 1; }
+
+            # --- sha256sums: 与 Release 上已有条目合并，不能覆盖（否则 full 的条目丢失）---
+            ANAME="$(basename "$IMG")"
+            # generic 重命名后的旧名（不带 -generic 后缀），合并时一并剔除
+            OLDNAME="$ANAME"
+            case "$ANAME" in *-generic.img.gz) OLDNAME="${ANAME%-generic.img.gz}.img.gz" ;; esac
+            EXIST_ID=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "$API/releases/$REL_ID/assets" \
+              | jq -r '.[] | select(.name=="sha256sums") | .id' | head -1)
+            : > /tmp/sums.base
+            if [ -n "${EXIST_ID:-}" ] && [ "$EXIST_ID" != "null" ]; then
+              # 资产二进制下载需要 Accept: application/octet-stream
+              curl -sL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/octet-stream' \
+                "$API/releases/assets/$EXIST_ID" -o /tmp/sums.base || true
+            fi
+            { grep -vE "  ${ANAME//./\\.}$|  ${OLDNAME//./\\.}$" /tmp/sums.base 2>/dev/null || true; } > /tmp/sums.new
+            ( cd "$T" && sha256sum "$ANAME" ) >> /tmp/sums.new
+            cp /tmp/sums.new "$T/sha256sums"
+            echo "---- 合并后的 sha256sums ----"; cat "$T/sha256sums"
+
             for ASSET in "$IMG" "$T/sha256sums"; do
               ANAME="$(basename "$ASSET")"
               OLD_ID=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "$API/releases/$REL_ID/assets" | jq -r --arg n "$ANAME" '.[]|select(.name==$n)|.id' | head -1)
-              if [ -n "$OLD_ID" ]; then
+              if [ -n "${OLD_ID:-}" ] && [ "$OLD_ID" != "null" ]; then
                 curl -s -o /dev/null -X DELETE -H "Authorization: Bearer $GH_TOKEN" "$API/releases/assets/$OLD_ID"
                 echo "已删除同名旧资产: $ANAME"
               fi
@@ -726,10 +744,24 @@ jobs:
                 --data-binary "@$ASSET" \
                 "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$REL_ID/assets?name=$ANAME"
             done
-            # 在已有 Release 说明后追加段落（不覆盖原说明）
+
+            # --- Release 说明：追加段落，幂等（重复追加时替换旧段落，不重复堆叠）---
             CUR=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "$API/releases/tags/$TAG" | jq -r .body)
-            printf '%s\n\n---\n\n### generic 变体（追加）\n\n- 资产：`%s`（sha256 `%s`）\n- 构建：run #%s，提交 `%s`，软件包 %s 个\n- 说明：**不含**任何固件内置脚本/自动配置；分区、挂载、docker 数据目录、LAN 等需手动配置（见 docs/first-boot-checklist.md）\n' \
-              "$CUR" "$(basename "$IMG")" "$(sha256sum "$IMG" | cut -d' ' -f1)" "$GITHUB_RUN_NUMBER" "${GITHUB_SHA:0:8}" "$PKGS" > /tmp/body.json
+            printf '%s\n' "$CUR" | awk '
+              /^<!-- generic-append:begin -->$/ {skip=1; next}
+              /^<!-- generic-append:end -->$/   {skip=0; next}
+              !skip' > /tmp/body.txt
+            {
+              cat /tmp/body.txt
+              echo ""
+              echo "<!-- generic-append:begin -->"
+              echo "### generic 变体（追加）"
+              echo ""
+              echo "- 资产：\`$(basename "$IMG")\`（sha256 \`$(sha256sum "$IMG" | cut -d' ' -f1)\`）"
+              echo "- 构建：run #${GITHUB_RUN_NUMBER}，提交 \`${GITHUB_SHA:0:8}\`，软件包 ${PKGS} 个"
+              echo "- 说明：**不含**任何固件内置脚本/自动配置；分区、挂载、docker 数据目录、LAN 等需手动配置（见 docs/first-boot-checklist.md）"
+              echo "<!-- generic-append:end -->"
+            } > /tmp/body.json
             jq -Rs '{body: .}' /tmp/body.json > /tmp/body_payload.json
             curl -s -o /dev/null -w "更新 Release 说明 HTTP %{http_code}\n" -X PATCH \
               -H "Authorization: Bearer $GH_TOKEN" -H 'Content-Type: application/json' \
@@ -780,6 +812,25 @@ jobs:
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$BODY" \
               || echo "::warning::创建 issue 失败 (仓库未开启 Issues?)"
           fi
+
+      - name: 构建成功时自动关闭失败 issue
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          NUMS=$(gh api "repos/${GITHUB_REPOSITORY}/issues?state=open&per_page=100" \
+            --jq '.[] | select(.title | startswith("CI 构建失败")) | .number' 2>/dev/null || true)
+          if [ -z "${NUMS:-}" ]; then
+            echo "没有未关闭的失败 issue"
+            exit 0
+          fi
+          for n in $NUMS; do
+            gh issue comment "$n" --repo "$GITHUB_REPOSITORY" \
+              --body "构建已通过（run #${GITHUB_RUN_NUMBER}，提交 \`${GITHUB_SHA:0:8}\`），自动关闭。" || true
+            gh issue close "$n" --repo "$GITHUB_REPOSITORY" --reason completed || true
+            echo "已关闭 issue #$n"
+          done
 
       - name: 上传编译日志 (仅失败时)
         if: failure()

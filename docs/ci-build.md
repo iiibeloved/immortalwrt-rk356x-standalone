@@ -123,9 +123,12 @@ ls bin/targets/rockchip/armv8/
   不经过 `make download`，因此这类失败会出现在编译中段。可先手动验证对应 Release 资产是否还在。
 - **`luci-app-filetransfer` 是个人维护的第三方单包**（MIT，依赖 `luci-compat`），若上游失效，
   工作流会告警并继续，固件仍然产出，只是少了该功能。
-- **rootfs 改为 4096 MB**（v3 起）：只影响只读 rootfs 分区；`rootfs_data` 在 `scripts/gen_image_generic.sh` 里写死 `USERDATASIZE=2048`，
-  因此整盘镜像约 4.3 GiB（boot 16 MiB + rootfs 200 MiB + rootfs_data 4096 MiB），
-  artifact 上传时间增加；若只想最小镜像，把 `rootfs_size` 输入改回 `200`。
+- **两个分区大小分别可调**：
+  - `rootfs`（只读系统分区，squashfs）由输入 `rootfs_size` 决定，默认 **200 MiB**，写入 `CONFIG_TARGET_ROOTFS_PARTSIZE`；
+  - `rootfs_data`（可写 overlay：iStore/opkg 装包、docker 数据、配置）由输入 `rootfs_data_size` 决定，默认 **4096 MiB**，
+    以环境变量 `ROOTFS_DATA_PARTSIZE` 传给 `scripts/gen_image_generic.sh`（该脚本默认值 4096，上游原值 2048）。
+  默认整盘镜像约 **4.3 GiB**（kernel/boot 16 MiB + rootfs 200 MiB + rootfs_data 4096 MiB），
+  产物体积与 artifact 上传时间相应增加；若要最小镜像，调小 `rootfs_data_size`（如 1024）即可。
 - **iStore 商店与 quickstart 的面板依赖 LuCI 前端能力**，在 24.10（Lua LuCI）上属“社区常用组合”，
   首次刷机后请实际打开 `系统 → 快速配置`、`iStore`、`网络存储 → 共享` 三项确认可用，再决定是否长期跟进。
 - 工作流产物无签名、无 `opkg` 仓库，仅作为整机固件使用。
