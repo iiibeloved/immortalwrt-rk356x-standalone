@@ -1,6 +1,6 @@
 # G68-PLUS 固件 · 下次编译详细教程
 
-> 仓库：<https://github.com/iiibeloved/immortalwrt-rk356x-standalone-standalone>
+> 仓库：<https://github.com/iiibeloved/immortalwrt-rk356x-standalone>
 > 目标：rockchip / armv8 / `DEVICE_nsy_g68-plus`（NSY G68-PLUS，RK3568，aarch64_generic，Linux 6.6）
 > 当前配置：`defconfig/g68-plus-docker.config` + `defconfig/g68-plus-istoreos.config`
 > 文档更新：2026-11-06（基于 run #42186516665 首次成功构建的实测数据）
@@ -34,7 +34,7 @@
 
 ### 1.2 网页手动触发（推荐用于验证改动）
 
-1. 打开 <https://github.com/iiibeloved/immortalwrt-rk356x-standalone-standalone/actions/workflows/build-g68-plus-docker.yml>
+1. 打开 <https://github.com/iiibeloved/immortalwrt-rk356x-standalone/actions/workflows/build-g68-plus-docker.yml>
 2. 右上角 **Run workflow** → 分支选 `main`
 3. 按下表填参数（全部有默认值，一般直接点绿色按钮）
 
@@ -54,7 +54,7 @@
 ```bash
 # 方式 A: gh CLI
 gh workflow run build-g68-plus-docker.yml \
-  --repo iiibeloved/immortalwrt-rk356x-standalone-standalone --ref main \
+  --repo iiibeloved/immortalwrt-rk356x-standalone --ref main \
   -f defconfig=defconfig/g68-plus-docker.config \
   -f extra_config=defconfig/g68-plus-istoreos.config \
   -f rootfs_size=200 \
@@ -66,7 +66,7 @@ gh workflow run build-g68-plus-docker.yml \
 curl -X POST \
   -H "Authorization: Bearer $GH_TOKEN" \
   -H "Accept: application/vnd.github+json" \
-  https://api.github.com/repos/iiibeloved/immortalwrt-rk356x-standalone-standalone/actions/workflows/build-g68-plus-docker.yml/dispatches \
+  https://api.github.com/repos/iiibeloved/immortalwrt-rk356x-standalone/actions/workflows/build-g68-plus-docker.yml/dispatches \
   -d '{"ref":"main","inputs":{
         "defconfig":"defconfig/g68-plus-docker.config",
         "extra_config":"defconfig/g68-plus-istoreos.config",

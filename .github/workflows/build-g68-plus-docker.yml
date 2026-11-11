@@ -622,6 +622,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # 资产命名与 sha256sums 合并的纯逻辑（tests/test_release_append.py 覆盖）
+          . scripts/release-append-lib.sh
           T=bin/targets/rockchip/armv8
           # 优先取 sysupgrade 镜像（同目录还可能有 sdcard.img.gz）
           IMG=$(ls "$T"/*sysupgrade.img.gz 2>/dev/null | head -1 || true)
@@ -649,11 +651,10 @@ jobs:
           # generic 追加到 full 的同一个 Release 时，资产名不能与 full 冲突 -> 加 -generic 后缀
           # （sha256sums 的合并放到追加分支里做：需要先读 Release 上已有的条目再合并，不能本地覆盖）
           if [ "${VARIANT:-full}" = "generic" ] && [ "$CREATE" = "0" ]; then
-            BASE_IMG="$(basename "$IMG" .img.gz)"
-            # 已带 -generic 后缀就不再追加（重复执行/同树重跑时避免变成 -generic-generic）
-            if [ "${BASE_IMG%-generic}" = "$BASE_IMG" ]; then
-              mv "$IMG" "$T/${BASE_IMG}-generic.img.gz"
-              IMG="$T/${BASE_IMG}-generic.img.gz"
+            NEWNAME=$(release_asset_name "$IMG" "$VARIANT")
+            if [ "$NEWNAME" != "$(basename "$IMG")" ]; then
+              mv "$IMG" "$T/$NEWNAME"
+              IMG="$T/$NEWNAME"
             fi
           fi
           PKGS=$(grep -c ' - ' "$T"/*.manifest 2>/dev/null || echo 0)
@@ -730,8 +731,7 @@ jobs:
               curl -sL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/octet-stream' \
                 "$API/releases/assets/$EXIST_ID" -o /tmp/sums.base || true
             fi
-            { grep -vE "  ${ANAME//./\\.}$" /tmp/sums.base 2>/dev/null || true; } > /tmp/sums.new
-            ( cd "$T" && sha256sum "$ANAME" ) >> /tmp/sums.new
+            { merge_sums /tmp/sums.base "$ANAME" "$(cd "$T" && sha256sum "$ANAME" | cut -d' ' -f1)"; } > /tmp/sums.new
             cp /tmp/sums.new "$T/sha256sums"
             echo "---- 合并后的 sha256sums ----"; cat "$T/sha256sums"
 

@@ -2,7 +2,7 @@
 # 校验: sha256sum -c docs/baseline.sha256
 f0f936847c137155b75be5f94be488529e2e0732794e209c112c970010a80428  defconfig/g68-plus-docker.config
 9b79cb37529bdb1bc4b05e8a8facd854b70ba406e36cc3fe594df97716f51b76  defconfig/g68-plus-istoreos.config
-eeeb705b7ed40d809e5b646d6cd7cb5aeb6df8239b244f75d426918e4375f74a  .github/workflows/build-g68-plus-docker.yml
+e1e9a08627afc8d40088a6d919825c54b215f51045511e9df4cf4c7d11366baa  .github/workflows/build-g68-plus-docker.yml
 5990b8bb7bd53886743551e3a33a8de621bd77593c3379d237fdb632c1fbbcf2  .github/workflows/publish-release.yml
 f6d59494a9c88f5fe4e2175f00067eb5b5160a32b903b0a16f726a7b99903e98  scripts/gen_image_generic.sh
 43666e86f2bdbfaf953a3b09bfdbf9960e6e1fff4fcd7cb687d0d257e17433e2  files/etc/config/ttyd
