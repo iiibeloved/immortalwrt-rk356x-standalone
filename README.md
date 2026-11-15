@@ -7,13 +7,30 @@
 
 ---
 
+## 当前版本（最新 Release）
+
+| 项 | 内容 |
+| --- | --- |
+| Release | [`g68-plus-2026.11.14-r20`](https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/tag/g68-plus-2026.11.14-r20) |
+| 发布 | 2026-11-14 |
+| 镜像 | **full** 168.6 MB / **generic** 168.6 MB（同一 Release） |
+| full sha256 | `e715cdbcc05290c9a09494c8c000fef326202520a2ec863f3340ff8ff27449e7` |
+| generic sha256 | `8edbd2f0cf2632a8d099e94972370eefe965f9049d4097502b17aa3e3f951e7e` |
+| 配置包数 | 约 **599** 个（以 Release 内 manifest/构建日志为准） |
+| 构建节奏 | 每周六 **02:00 CST** 自动构建；也可在 Actions 手动触发 |
+
+> 上游 ImmortalWrt / feeds / 插件更新会在下一次定时构建中自动带入。
+> 下载慢时在链接前加 `https://gh-proxy.com/`、`https://ghfast.top/` 或 `https://ghproxy.net/`，sha256 不变。
+
+---
+
 ## 1. 这是什么
 
 给 **RK3568 软路由/NAS 小板**编的 ImmortalWrt 24.10 固件：**iStoreOS 风格**（商店 + 向导）、
 Docker、DDNS、共享、分区工具齐全；**不做任何自动分区/格式化**，把有断电风险的磁盘操作交给你手动执行。
 
 - 构建：GitHub Actions 自动出包（每周六 02:00，或手动触发）
-- 两个变体：**full**（默认，带内置脚本/自动配置）与 **generic**（纯应用 + 全手动配置，release 名带 `-generic` 后缀）
+- 两个变体：**full**（默认，带内置脚本/自动配置）与 **generic**（纯应用 + 全手动配置）；两者发布在**同一个 Release**（generic 资产名带 `-generic`）
 - 产物：`*.img.gz` + `sha256sums`，自动发布到 Release
 - 配置：冻结基线 + CI 指纹校验（改动会被拦下）
 
@@ -42,7 +59,7 @@ Docker、DDNS、共享、分区工具齐全；**不做任何自动分区/格式�
 | 文件 | `luci-app-filemanager`、`luci-app-filetransfer` |
 | 应用 | `luci-app-homeassistant`（Docker 方式，含中文；HA≥2026.11 用内置 Marketplace） |
 
-完整包清单（**565 个**，含版本）：[docs/packages.md](docs/packages.md)
+完整包清单（基线，含版本）：[docs/packages.md](docs/packages.md)；当前构建配置约 **599 个**包
 
 ## 4. 适用机型
 
@@ -172,11 +189,11 @@ docker info | grep -i 'docker root dir'
 
 ## 9. 下载与文档
 
-- 下载：见 [Releases](https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases)；直连慢时在链接前加
+- 下载：最新 [`g68-plus-2026.11.14-r20`](https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/tag/g68-plus-2026.11.14-r20)，或见 [Releases](https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases)；直连慢时在链接前加
   `https://gh-proxy.com/`（或 `ghfast.top` / `ghproxy.net`），sha256 不变
 - [docs/first-boot-checklist.md](docs/first-boot-checklist.md)：刷机后完整操作流程（按重要程度）
 - [docs/build-guide.md](docs/build-guide.md)：构建/刷机/维护全教程（含 USB maskrom、dd、手动分区、附录）
-- [docs/packages.md](docs/packages.md)：固件包清单（约 565 包 + 基线指纹）
+- [docs/packages.md](docs/packages.md)：固件包清单（基线 + 指纹；当前构建约 599 包）
 - [docs/invariants.md](docs/invariants.md)：**部署约定与迁移手册**（哪些路径/名字必须保持一致、换盘/重刷后怎么恢复）
 - [docs/scripts/](docs/scripts/)：`bootstrap-remote.sh`、`setup-router.sh`、`docker-apps.sh`
 
