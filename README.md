@@ -255,7 +255,43 @@ LuCI → 系统 → 备份/升级 → 上传 .img.gz → 勾选「保留配置�
 - **full / generic 裁剪**：构建时按 variant 裁剪内置脚本 / 配置——full 带初始化脚本（首启自动配置并重启一次），generic 为纯应用手动配置。
 - **分区表校验**：构建过程校验镜像分区布局，避免写出不可用的整盘镜像。
 
-### 10.3 仓库结构
+### 10.3 构建流水线
+
+```text
+触发（schedule 周六 02:00 CST / push defconfig / workflow_dispatch / repository_dispatch）
+   │
+   ▼
+build（单一主作业，顺序执行）
+   检出源码 → 单元测试(发布逻辑) → 校验配置与目标
+   ▼
+安装依赖 → 生成 feeds.conf（官方源）→ 更新并安装官方 feeds
+   ▼
+引入第三方 feed（选择性安装）+ 本地单包（filetransfer / partexp / menusort）
+   ▼
+写入构建信息 /etc/g68-build → 按 variant 裁剪内置脚本（full / generic）
+   ▼
+应用 defconfig + 附加配置 + rootfs 大小 → make defconfig → make prereq → 校验附加包
+   ▼
+缓存 dl / ccache → 下载源码 → 构建工具链 → 预编 u-boot 并归档 .config
+   ▼
+编译固件 → 记录 rootfs 占用 → 校验镜像分区表 → 收集固件
+   ▼
+上传 artifact → 发布到 Release（免登录直链）→ full 成功后自动触发 generic 追编
+   ▼
+构建失败自动开 issue（同类复用）/ 成功自动关闭失败 issue
+```
+
+| 环节 | 职责 |
+| --- | --- |
+| 触发 | `schedule`（每周六 02:00 CST）、`push`（defconfig / workflow 变更）、`workflow_dispatch`（可改配置 / rootfs 大小）、`repository_dispatch` |
+| `build` | 单一主作业：feeds 与第三方包、variant 裁剪、配置归一化与校验、工具链、u-boot 预编、全量编译、镜像分区表校验、发布 Release |
+| `publish-release.yml` | 独立发布作业（仅手动 / API 触发）：下载构建产物 → 解出固件与校验文件 → 复用 `release-append-lib` 上传到 Release |
+| variant 追编 | full 成功后自动触发 generic 追编，两变体发布在同一个 Release |
+| issue 联动 | 构建失败自动开 issue（同类复用不重复），成功时自动关闭失败 issue |
+
+触发方式：`schedule`（每周定时）、`push`（配置变更）、`workflow_dispatch`（手动）、`repository_dispatch`（外部触发）；发布另有独立的 `publish-release.yml`。
+
+### 10.4 仓库结构
 
 ```text
 defconfig/                g68-plus-docker.config（基础）+ g68-plus-istoreos.config（附加）
@@ -266,7 +302,7 @@ docs/scripts/             bootstrap-remote.sh / setup-router.sh / docker-apps.sh
 config/                   OpenWrt 构建配置框架
 ```
 
-### 10.4 不变量（任何改动都不得破坏）
+### 10.5 不变量（任何改动都不得破坏）
 
 1. 设备适配以 fork 上游基线为准，品牌 / 网络 / 按键能力不回退；
 2. 不做自动分区 / 格式化，不因磁盘操作自动重启；
