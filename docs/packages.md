@@ -1,10 +1,9 @@
 # 固件包清单（基线 · 2026-11-08）
 
-> **当前最新 Release**：[`g68-plus-2026.11.14-r20`](https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/tag/g68-plus-2026.11.14-r20)（2026-11-14）
-> full sha256：`e715cdbcc05290c9a09494c8c000fef326202520a2ec863f3340ff8ff27449e7`
-> generic sha256：`8edbd2f0cf2632a8d099e94972370eefe965f9049d4097502b17aa3e3f951e7e`
-> 当前构建配置启用约 **599** 个包；下列清单为基线记录。
-
+> **当前最新 Release**：[`g68-plus-2026.11.21`](https://github.com/iiibeloved/immortalwrt-rk356x-standalone/releases/tag/g68-plus-2026.11.21)（2026-11-21）
+> 构建：run [#22](https://github.com/iiibeloved/immortalwrt-rk356x-standalone/actions/runs/44797292622)（定时 cron 被跳过后手动 workflow_dispatch）
+> 镜像 sha256：`153c9ce2c91e0160083279f0ee4095ad9b578c5dcd70d0394a7db77f74769dec`
+> 本次包数：**568**；下列清单为基线记录（上一条为 2026-11-14-r20 full/generic 双变体）。
 
 > 由构建产物 `immortalwrt-rockchip-armv8-nsy_g68-plus.manifest` 直接生成，非手写。
 
